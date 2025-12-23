@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Music Genre Classification: A Beginner's Guide</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Chosen Palette: Warm Neutrals & Academica -->
+    <!-- Application Structure Plan: 
+         The app is designed as a linear but explorable "Learning Dashboard".
+         1. Header/Intro: Sets the stage (Audio -> Math -> Genre).
+         2. Interactive Pipeline: A horizontal flow (or vertical on mobile) representing the 5 key stages of the project. Clicking a stage updates the central content area. This chosen structure breaks a complex linear process into digestible chunks.
+         3. "The Data" Deep Dive: Interactive chart visualizing Waveforms vs. Spectrograms concept.
+         4. "The Features" Lab: Explains MFCCs (the core of audio DL) with a visualization of coefficients.
+         5. "The Model" Arena: Compares simple ML (KNN) vs. Deep Learning (CNN) approaches using a performance chart.
+         Rationale: This structure mirrors the actual workflow of a data scientist, making the mental model intuitive for a CS student.
+    -->
+    <!-- Visualization & Content Choices:
+         1. Waveform Visualizer (Line Chart): Goal -> Inform/Change. Shows how computers "see" sound (amplitude over time). Interaction -> Zoom/Sampling simulation.
+         2. Feature Vector (Bar Chart): Goal -> Inform. Visualizes MFCCs (Mel-Frequency Cepstral Coefficients). Justification -> Abstract arrays of numbers are hard to grasp; bars make the "shape" of the sound features visible.
+         3. Accuracy Comparison (Bar Chart): Goal -> Compare. CNN vs KNN vs Random Forest. Justification -> clearly shows why Deep Learning is the standard.
+         4. Process Flow (HTML/CSS): Goal -> Organize. Clickable steps.
+         CONFIRMATION: NO SVG graphics used. NO Mermaid JS used.
+    -->
+
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,400&display=swap");
+
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f9f8f6; /* Warm off-white */
+        color: #1f2937;
+      }
+
+      h1,
+      h2,
+      h3,
+      .serif {
+        font-family: "Merriweather", serif;
+      }
+
+      /* Chart Container Strict Styling */
+      .chart-container {
+        position: relative;
+        width: 100%;
+        max-width: 800px; /* Max width for readability */
+        margin-left: auto;
+        margin-right: auto;
+        height: 300px;
+        max-height: 400px;
+      }
+
+      @media (min-width: 768px) {
+        .chart-container {
+          height: 350px;
+        }
+      }
+
+      /* Interactive Element States */
+      .nav-item.active {
+        background-color: #e5e7eb;
+        border-left: 4px solid #d97706; /* Amber-600 */
+        font-weight: 600;
+      }
+
+      .pipeline-step.active {
+        background-color: #fef3c7; /* Amber-100 */
+        border-color: #d97706;
+        color: #92400e;
+      }
+
+      /* Smooth transitions */
+      .transition-all-300 {
+        transition: all 0.3s ease-in-out;
+      }
+    </style>
+  </head>
+  <body class="antialiased min-h-screen flex flex-col">
+    <!-- Header Section -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <div
+        class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center"
+      >
+        <div>
+          <h1 class="text-xl md:text-2xl font-bold text-gray-800">
+            Audio to Genre
+          </h1>
+          <p class="text-xs md:text-sm text-gray-500 uppercase tracking-wide">
+            Machine Learning Guide for Beginners
+          </p>
+        </div>
+        <div class="hidden md:block">
+          <span class="text-sm bg-gray-100 px-3 py-1 rounded-full text-gray-600"
+            >CS Level 101</span
+          >
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main
+      class="flex-grow max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8"
+    >
+      <!-- Sidebar Navigation (Concept & Steps) -->
+      <aside class="lg:col-span-3 space-y-8">
+        <div class="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+          <h3 class="text-lg font-bold mb-4 serif text-gray-800">
+            The Curriculum
+          </h3>
+          <nav class="space-y-1">
+            <button
+              onclick="app.navigate('intro')"
+              id="nav-intro"
+              class="nav-item w-full text-left px-4 py-3 rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors block"
+            >
+              1. Introduction
+            </button>
+            <button
+              onclick="app.navigate('pipeline')"
+              id="nav-pipeline"
+              class="nav-item w-full text-left px-4 py-3 rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors block"
+            >
+              2. The Pipeline (Overview)
+            </button>
+            <button
+              onclick="app.navigate('features')"
+              id="nav-features"
+              class="nav-item w-full text-left px-4 py-3 rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors block"
+            >
+              3. Deep Dive: Features
+            </button>
+            <button
+              onclick="app.navigate('model')"
+              id="nav-model"
+              class="nav-item w-full text-left px-4 py-3 rounded-md text-sm text-gray-600 hover:bg-gray-50 transition-colors block"
+            >
+              4. Models & Training
+            </button>
+          </nav>
+        </div>
+
+        <!-- Quick Stats / Fact Box -->
+        <div class="bg-stone-100 rounded-lg p-5 border border-stone-200">
+          <h4 class="font-bold text-stone-700 mb-2">Did you know?</h4>
+          <p class="text-sm text-stone-600 leading-relaxed" id="did-you-know">
+            The standard dataset for this task is <strong>GTZAN</strong>. It
+            contains 1,000 track snippets, 30 seconds each, across 10 genres
+            like Rock, Jazz, and Disco.
+          </p>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <section class="lg:col-span-9 space-y-6">
+        <!-- Dynamic Content Container -->
+        <div
+          id="content-area"
+          class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden min-h-[500px]"
+        >
+          <!-- Content injected via JS -->
+        </div>
+      </section>
+    </main>
+
+    <footer class="bg-gray-50 border-t border-gray-200 mt-12 py-8">
+      <div class="max-w-6xl mx-auto px-4 text-center text-gray-500 text-sm">
+        <p>Interactive Educational Guide for Music Genre Classification.</p>
+        <p class="mt-2">
+          Core Tools: Python &bull; Librosa &bull; Scikit-learn &bull;
+          TensorFlow
+        </p>
+      </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+      // State Management
+      const app = {
+        currentState: "intro",
+
+        // Data for Charts
+        data: {
+          waveform: Array.from({ length: 100 }, () => Math.random() * 2 - 1),
+          mfcc: [120, -20, 15, 5, -10, 8, -5, 12, 3, -2, 5, -4, 2], // Dummy MFCC coefficients
+          accuracies: [45, 65, 78, 92], // Random, KNN, SVM, CNN
+        },
+
+        charts: {}, // Store chart instances
+
+        // Navigation Logic
+        navigate: function (viewId) {
+          this.currentState = viewId;
+
+          // Update UI Nav
+          document
+            .querySelectorAll(".nav-item")
+            .forEach((el) => el.classList.remove("active"));
+          document.getElementById(`nav-${viewId}`).classList.add("active");
+
+          // Render Content
+          const contentDiv = document.getElementById("content-area");
+          contentDiv.innerHTML = this.views[viewId]();
+
+          // Initialize Charts if they exist in the new view
+          this.initCharts(viewId);
+
+          // Scroll top of content
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        },
+
+        // Views (HTML Generators)
+        views: {
+          intro: () => `
+                    <div class="p-8 md:p-10">
+                        <div class="max-w-3xl">
+                            <h2 class="text-3xl font-bold text-gray-900 mb-6 serif">How do machines "hear" genre?</h2>
+                            <p class="text-lg text-gray-600 mb-6 leading-relaxed">
+                                To a computer, a song isn't a melody—it's a massive list of numbers representing air pressure changes over time. 
+                                The challenge of genre classification is to translate these raw numbers into meaningful patterns (rhythm, timbre, pitch) 
+                                that distinguish <em>Heavy Metal</em> from <em>Classical</em>.
+                            </p>
+                            
+                            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8">
+                                <p class="text-blue-800 font-medium">The Core Concept</p>
+                                <p class="text-sm text-blue-700 mt-1">
+                                    We don't usually feed raw audio directly into a model. Instead, we convert audio into <strong>images (Spectrograms)</strong> or <strong>mathematical summaries (Features)</strong> and classify those.
+                                </p>
+                            </div>
+
+                            <h3 class="text-xl font-bold text-gray-800 mb-4">Visualizing Sound Data</h3>
+                            <p class="text-gray-600 mb-4 text-sm">Below is a simplified representation of raw audio (Amplitude over Time). Use the button to simulate "Sampling".</p>
+                            
+                            <!-- Chart Container -->
+                            <div class="chart-container bg-white p-4 rounded-lg border border-gray-100 mb-6">
+                                <canvas id="waveformChart"></canvas>
+                            </div>
+                            
+                            <div class="flex justify-center gap-4">
+                                <button onclick="app.updateWaveform()" class="px-5 py-2 bg-gray-800 text-white rounded-md hover:bg-gray-700 transition-colors shadow-sm text-sm font-medium">
+                                    Simulate New Audio Sample
+                                </button>
+                            </div>
+
+                            <div class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 mb-2">Required Tools</h4>
+                                    <ul class="list-disc list-inside text-sm text-gray-600 space-y-2">
+                                        <li><strong>Python:</strong> The language of Data Science.</li>
+                                        <li><strong>Librosa:</strong> The ultimate audio analysis library.</li>
+                                        <li><strong>NumPy:</strong> For handling large arrays of data.</li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 mb-2">Prerequisites</h4>
+                                    <ul class="list-disc list-inside text-sm text-gray-600 space-y-2">
+                                        <li>Basic Python programming.</li>
+                                        <li>Understanding of arrays/matrices.</li>
+                                        <li>High school level statistics (mean, variance).</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `,
+          pipeline: () => `
+                    <div class="p-8 md:p-10">
+                        <h2 class="text-3xl font-bold text-gray-900 mb-2 serif">The 5-Step Pipeline</h2>
+                        <p class="text-gray-600 mb-8">Click each step below to explore the workflow needed to build a classifier.</p>
+
+                        <!-- Interactive Pipeline Steps -->
+                        <div class="flex flex-col md:flex-row justify-between gap-4 mb-8">
+                            <button onclick="app.updatePipelineDetail(1)" id="step-1" class="pipeline-step active flex-1 p-4 border rounded-lg text-center transition-all-300 hover:shadow-md bg-amber-50 border-amber-500 text-amber-900">
+                                <div class="text-xs font-bold uppercase tracking-wider mb-1">Step 1</div>
+                                <div class="font-bold">Data Collection</div>
+                            </button>
+                            <button onclick="app.updatePipelineDetail(2)" id="step-2" class="pipeline-step flex-1 p-4 border border-gray-200 rounded-lg text-center bg-white text-gray-600 transition-all-300 hover:shadow-md hover:border-amber-300">
+                                <div class="text-xs font-bold uppercase tracking-wider mb-1">Step 2</div>
+                                <div class="font-bold">Preprocessing</div>
+                            </button>
+                            <button onclick="app.updatePipelineDetail(3)" id="step-3" class="pipeline-step flex-1 p-4 border border-gray-200 rounded-lg text-center bg-white text-gray-600 transition-all-300 hover:shadow-md hover:border-amber-300">
+                                <div class="text-xs font-bold uppercase tracking-wider mb-1">Step 3</div>
+                                <div class="font-bold">Feature Extraction</div>
+                            </button>
+                            <button onclick="app.updatePipelineDetail(4)" id="step-4" class="pipeline-step flex-1 p-4 border border-gray-200 rounded-lg text-center bg-white text-gray-600 transition-all-300 hover:shadow-md hover:border-amber-300">
+                                <div class="text-xs font-bold uppercase tracking-wider mb-1">Step 4</div>
+                                <div class="font-bold">Training</div>
+                            </button>
+                            <button onclick="app.updatePipelineDetail(5)" id="step-5" class="pipeline-step flex-1 p-4 border border-gray-200 rounded-lg text-center bg-white text-gray-600 transition-all-300 hover:shadow-md hover:border-amber-300">
+                                <div class="text-xs font-bold uppercase tracking-wider mb-1">Step 5</div>
+                                <div class="font-bold">Evaluation</div>
+                            </button>
+                        </div>
+
+                        <!-- Dynamic Detail Pane -->
+                        <div id="pipeline-detail" class="bg-stone-50 rounded-xl p-8 border border-stone-200 min-h-[200px]">
+                            <!-- Default Content (Step 1) -->
+                            <h3 class="text-xl font-bold text-gray-800 mb-3">Step 1: The Dataset (GTZAN)</h3>
+                            <p class="text-gray-700 mb-4">Before writing code, you need data. The "Hello World" dataset for music genre classification is <strong>GTZAN</strong>.</p>
+                            <ul class="list-disc list-inside space-y-2 text-sm text-gray-600">
+                                <li><strong>Size:</strong> 1,000 audio tracks.</li>
+                                <li><strong>Length:</strong> 30 seconds each.</li>
+                                <li><strong>Classes:</strong> 10 Genres (Blues, Classical, Country, Disco, Hiphop, Jazz, Metal, Pop, Reggae, Rock).</li>
+                                <li><strong>Challenge:</strong> Download the dataset and organize folders by genre label.</li>
+                            </ul>
+                            <div class="mt-4 p-3 bg-gray-800 rounded text-green-400 font-mono text-xs overflow-x-auto">
+                                dataset/<br>
+                                ├── blues/<br>
+                                │   ├── blues.00000.wav<br>
+                                ├── jazz/<br>
+                                │   ├── jazz.00000.wav<br>
+                                ...
+                            </div>
+                        </div>
+                    </div>
+                `,
+          features: () => `
+                    <div class="p-8 md:p-10">
+                        <div class="max-w-3xl mb-8">
+                            <h2 class="text-3xl font-bold text-gray-900 mb-4 serif">Deep Dive: Feature Extraction</h2>
+                            <p class="text-gray-600 mb-6">
+                                We cannot pass raw audio (44,100 numbers per second!) into a standard classifier efficiently. 
+                                We must extract "Features"—summary statistics that describe the sound's texture.
+                            </p>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                <div class="bg-white border border-gray-200 p-5 rounded-lg shadow-sm hover:border-amber-400 transition-colors cursor-pointer" onclick="app.showFeatureInfo('mfcc')">
+                                    <h4 class="font-bold text-amber-600 mb-2">1. MFCCs (Crucial)</h4>
+                                    <p class="text-xs text-gray-500">Mel-Frequency Cepstral Coefficients. They approximate the human vocal tract shape. The #1 feature for timbre.</p>
+                                </div>
+                                <div class="bg-white border border-gray-200 p-5 rounded-lg shadow-sm hover:border-purple-400 transition-colors cursor-pointer" onclick="app.showFeatureInfo('sc')">
+                                    <h4 class="font-bold text-purple-600 mb-2">2. Spectral Centroid</h4>
+                                    <p class="text-xs text-gray-500">The "Center of Mass" of the sound. Bright sounds (Pop) have high centroids; Dark sounds (Blues) have low.</p>
+                                </div>
+                                <div class="bg-white border border-gray-200 p-5 rounded-lg shadow-sm hover:border-blue-400 transition-colors cursor-pointer" onclick="app.showFeatureInfo('zcr')">
+                                    <h4 class="font-bold text-blue-600 mb-2">3. Zero Crossing Rate</h4>
+                                    <p class="text-xs text-gray-500">How often the signal changes sign. Great for detecting percussive or noisy sounds (Metal/Rock).</p>
+                                </div>
+                                <div class="bg-white border border-gray-200 p-5 rounded-lg shadow-sm hover:border-green-400 transition-colors cursor-pointer" onclick="app.showFeatureInfo('chroma')">
+                                    <h4 class="font-bold text-green-600 mb-2">4. Chroma</h4>
+                                    <p class="text-xs text-gray-500">Relates to the 12 different pitch classes. Useful for analyzing harmony and chords.</p>
+                                </div>
+                            </div>
+
+                            <h3 class="text-xl font-bold text-gray-800 mb-4" id="feature-viz-title">Visualizing MFCCs</h3>
+                            <p class="text-sm text-gray-500 mb-4" id="feature-viz-desc">Below is a visual representation of MFCC coefficients for a single frame of audio. This unique "fingerprint" helps the model identify timbre.</p>
+                            
+                            <!-- Chart Container -->
+                            <div class="chart-container bg-white p-4 rounded-lg border border-gray-100">
+                                <canvas id="featureChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                `,
+          model: () => `
+                    <div class="p-8 md:p-10">
+                        <h2 class="text-3xl font-bold text-gray-900 mb-4 serif">Models & Training</h2>
+                        <p class="text-gray-600 mb-8">
+                            Once features are extracted, we have a math problem: mapping input vectors (features) to output labels (genres). 
+                            There are two main paths: <strong>Classic Machine Learning</strong> and <strong>Deep Learning</strong>.
+                        </p>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+                            <!-- Path 1 -->
+                            <div class="bg-stone-50 p-6 rounded-xl border border-stone-200">
+                                <h3 class="font-bold text-lg text-gray-800 mb-2">Path 1: Classic ML</h3>
+                                <div class="text-xs font-mono bg-white p-2 border border-gray-200 rounded mb-3 text-gray-500">K-Nearest Neighbors (KNN), SVM, Random Forest</div>
+                                <p class="text-sm text-gray-600 mb-4">
+                                    You calculate the <strong>mean</strong> and <strong>variance</strong> of the MFCCs over the whole song to create a single row of data per song. Then you train a classifier.
+                                </p>
+                                <ul class="text-sm text-green-700 list-disc list-inside">
+                                    <li>Easy to implement</li>
+                                    <li>Fast training</li>
+                                    <li>Good baseline (~60-70% accuracy)</li>
+                                </ul>
+                            </div>
+
+                            <!-- Path 2 -->
+                            <div class="bg-amber-50 p-6 rounded-xl border border-amber-200">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="font-bold text-lg text-gray-900">Path 2: Deep Learning (CNN)</h3>
+                                    <span class="bg-amber-200 text-amber-800 text-[10px] font-bold px-2 py-1 rounded">RECOMMENDED</span>
+                                </div>
+                                <div class="text-xs font-mono bg-white p-2 border border-amber-100 rounded mb-3 text-gray-500">Convolutional Neural Networks (CNN)</div>
+                                <p class="text-sm text-gray-700 mb-4">
+                                    Don't summarize the data! Slice the song into 3-second windows, generate a <strong>Mel-Spectrogram</strong> image for each, and feed it into a CNN (like image classification).
+                                </p>
+                                <ul class="text-sm text-amber-800 list-disc list-inside">
+                                    <li>State of the Art results</li>
+                                    <li>Learns temporal patterns</li>
+                                    <li>Higher accuracy (~75-90%+)</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <h3 class="text-xl font-bold text-gray-800 mb-4">Performance Comparison (GTZAN Dataset)</h3>
+                        <p class="text-sm text-gray-500 mb-4">Typical accuracy scores for beginners on the test set.</p>
+                        
+                        <!-- Chart Container -->
+                        <div class="chart-container bg-white p-4 rounded-lg border border-gray-100">
+                            <canvas id="accuracyChart"></canvas>
+                        </div>
+                    </div>
+                `,
+        },
+
+        // Chart Initialization Logic
+        initCharts: function (viewId) {
+          // Destroy old charts to prevent canvas reuse errors
+          Object.values(this.charts).forEach((chart) => chart.destroy());
+          this.charts = {};
+
+          if (viewId === "intro") {
+            const ctx = document
+              .getElementById("waveformChart")
+              .getContext("2d");
+            this.charts.waveform = new Chart(ctx, {
+              type: "line",
+              data: {
+                labels: Array.from({ length: 100 }, (_, i) => i),
+                datasets: [
+                  {
+                    label: "Amplitude",
+                    data: this.data.waveform,
+                    borderColor: "#4F46E5", // Indigo
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    backgroundColor: "rgba(79, 70, 229, 0.1)",
+                    tension: 0.4,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                  x: { display: false },
+                  y: { display: false, min: -1.5, max: 1.5 },
+                },
+                animation: { duration: 1000 },
+              },
+            });
+          } else if (viewId === "features") {
+            const ctx = document
+              .getElementById("featureChart")
+              .getContext("2d");
+            this.charts.features = new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels: [
+                  "MFCC 1",
+                  "MFCC 2",
+                  "MFCC 3",
+                  "MFCC 4",
+                  "MFCC 5",
+                  "MFCC 6",
+                  "MFCC 7",
+                  "MFCC 8",
+                  "MFCC 9",
+                  "MFCC 10",
+                  "MFCC 11",
+                  "MFCC 12",
+                  "MFCC 13",
+                ],
+                datasets: [
+                  {
+                    label: "Coefficient Value",
+                    data: this.data.mfcc,
+                    backgroundColor: (context) => {
+                      const val = context.raw;
+                      return val >= 0
+                        ? "rgba(217, 119, 6, 0.8)"
+                        : "rgba(75, 85, 99, 0.8)"; // Amber vs Gray
+                    },
+                    borderRadius: 4,
+                  },
+                ],
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: { display: false },
+                  tooltip: { callbacks: { label: (c) => `Val: ${c.raw}` } },
+                },
+                scales: {
+                  y: { beginAtZero: true, grid: { color: "#f3f4f6" } },
+                  x: { grid: { display: false } },
+                },
+              },
+            });
+          } else if (viewId === "model") {
+            const ctx = document
+              .getElementById("accuracyChart")
+              .getContext("2d");
+            this.charts.accuracy = new Chart(ctx, {
+              type: "bar",
+              data: {
+                labels: [
+                  "Random Guess",
+                  "KNN (Classic)",
+                  "SVM (Classic)",
+                  "CNN (Deep Learning)",
+                ],
+                datasets: [
+                  {
+                    label: "Accuracy %",
+                    data: this.data.accuracies,
+                    backgroundColor: [
+                      "#E5E7EB",
+                      "#D1D5DB",
+                      "#9CA3AF",
+                      "#D97706",
+                    ], // Greys and Amber highlight
+                    borderRadius: 6,
+                    barPercentage: 0.6,
+                  },
+                ],
+              },
+              options: {
+                indexAxis: "y", // Horizontal bar chart
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: { max: 100, grid: { color: "#f3f4f6" } },
+                  y: { grid: { display: false } },
+                },
+                plugins: {
+                  legend: { display: false },
+                },
+              },
+            });
+          }
+        },
+
+        // Interactive Actions
+        updateWaveform: function () {
+          if (this.charts.waveform) {
+            const newData = Array.from(
+              { length: 100 },
+              () => Math.random() * 2 - 1
+            );
+            this.charts.waveform.data.datasets[0].data = newData;
+            this.charts.waveform.update();
+          }
+        },
+
+        showFeatureInfo: function (featureKey) {
+          // In a full app, this would update charts dynamically based on feature type
+          // Here we simulate updating the description text and flashing the chart
+          const title = document.getElementById("feature-viz-title");
+          const desc = document.getElementById("feature-viz-desc");
+
+          if (featureKey === "mfcc") {
+            title.innerText = "Visualizing MFCCs";
+            desc.innerText =
+              "Coefficients representing the spectral envelope (timbre).";
+            this.updateFeatureChart([
+              120, -20, 15, 5, -10, 8, -5, 12, 3, -2, 5, -4, 2,
+            ]);
+          } else if (featureKey === "sc") {
+            title.innerText = "Visualizing Spectral Centroid";
+            desc.innerText =
+              "A single value (usually) tracked over time. Here we show variance per frame.";
+            this.updateFeatureChart([
+              45, 50, 48, 52, 60, 55, 40, 35, 42, 48, 50, 52, 55,
+            ]);
+          } else if (featureKey === "zcr") {
+            title.innerText = "Visualizing Zero Crossing Rate";
+            desc.innerText =
+              "High bars indicate noisy/percussive frames. Low bars indicate tonal sounds.";
+            this.updateFeatureChart([
+              5, 2, 1, 80, 95, 20, 5, 2, 4, 85, 90, 15, 5,
+            ]);
+          } else {
+            title.innerText = "Visualizing Chroma";
+            desc.innerText =
+              "Energy distribution across the 12 pitch classes (C, C#, D, etc.).";
+            this.updateFeatureChart([
+              10, 5, 8, 2, 0, 0, 15, 25, 5, 2, 8, 10, 12,
+            ]); // 12+1 bins
+          }
+        },
+
+        updateFeatureChart: function (newData) {
+          if (this.charts.features) {
+            this.charts.features.data.datasets[0].data = newData;
+            this.charts.features.update();
+          }
+        },
+
+        updatePipelineDetail: function (step) {
+          // Update active state of buttons
+          document.querySelectorAll(".pipeline-step").forEach((btn) => {
+            btn.classList.remove(
+              "active",
+              "bg-amber-50",
+              "border-amber-500",
+              "text-amber-900"
+            );
+            btn.classList.add("bg-white", "text-gray-600", "border-gray-200");
+          });
+          const activeBtn = document.getElementById(`step-${step}`);
+          activeBtn.classList.remove(
+            "bg-white",
+            "text-gray-600",
+            "border-gray-200"
+          );
+          activeBtn.classList.add(
+            "active",
+            "bg-amber-50",
+            "border-amber-500",
+            "text-amber-900"
+          );
+
+          // Update text content
+          const detailDiv = document.getElementById("pipeline-detail");
+
+          const content = {
+            1: `
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">Step 1: Data Collection & Loading</h3>
+                        <p class="text-gray-700 mb-4">Load audio files using <code>Librosa</code>. This converts the .wav file into a floating-point Time Series array.</p>
+                        <div class="bg-gray-800 text-gray-200 p-4 rounded text-sm font-mono overflow-x-auto">
+                            import librosa<br>
+                            # y = audio time series, sr = sampling rate (e.g. 22050)<br>
+                            y, sr = librosa.load('blues.00000.wav', duration=30)
+                        </div>
+                    `,
+            2: `
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">Step 2: Preprocessing (Slicing)</h3>
+                        <p class="text-gray-700 mb-4">
+                            Machine learning models need fixed-size inputs. A 30-second song is too long for one input.
+                            We usually <strong>slice</strong> the song into smaller windows (e.g., 3 seconds).
+                        </p>
+                        <p class="text-sm text-gray-600"><strong>Math:</strong> 1 Song (30s) -> 10 Segments (3s). This increases your dataset size by 10x!</p>
+                    `,
+            3: `
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">Step 3: Feature Extraction</h3>
+                        <p class="text-gray-700 mb-4">Convert the time-series slices into features. For CNNs, we generate <strong>Mel-Spectrograms</strong>.</p>
+                        <div class="bg-gray-800 text-gray-200 p-4 rounded text-sm font-mono overflow-x-auto">
+                            # Generate a Mel Spectrogram<br>
+                            spectrogram = librosa.feature.melspectrogram(y=y, sr=sr)<br>
+                            log_spectrogram = librosa.power_to_db(spectrogram)
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">The 'log' conversion is important because human hearing is logarithmic (Decibels).</p>
+                    `,
+            4: `
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">Step 4: Training (The CNN)</h3>
+                        <p class="text-gray-700 mb-4">Construct a Convolutional Neural Network (CNN) using Keras/TensorFlow. It treats the spectrogram like an image.</p>
+                        <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                            <li><strong>Input Shape:</strong> (128, 128, 1) -> (Freq Bins, Time Steps, Channels)</li>
+                            <li><strong>Layers:</strong> Conv2D -> MaxPool2D -> Flatten -> Dense -> Output (Softmax)</li>
+                            <li><strong>Loss Function:</strong> Categorical Crossentropy (since we have 10 genres)</li>
+                        </ul>
+                    `,
+            5: `
+                        <h3 class="text-xl font-bold text-gray-800 mb-3">Step 5: Evaluation & Prediction</h3>
+                        <p class="text-gray-700 mb-4">Test the model on unseen data. A "Confusion Matrix" is the best way to visualize errors.</p>
+                        <p class="text-sm text-gray-600">
+                            <strong>Common Error:</strong> Rock often gets confused with Metal (similar instruments) or Country (similar structure). 
+                            Classical is usually the easiest to classify accurately.
+                        </p>
+                    `,
+          };
+
+          detailDiv.innerHTML = content[step];
+        },
+      };
+
+      // Initialize App
+      document.addEventListener("DOMContentLoaded", () => {
+        app.navigate("intro");
+      });
+    </script>
+  </body>
+</html>
