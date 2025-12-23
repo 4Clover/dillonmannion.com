@@ -1,12 +1,10 @@
-# _[dillonmannion.com](dillonmannion.com)_ **MEGA-REPO**
+# **_[dillonmannion.com](https://dillonmannion.com/)_** **MEGA-REPO**
 
-## --- | STATUS | ---
+## **STATUS**
 
-### Version 1.0
+### Version 0.1 : `Development`
 
-**Currently in developement**
-
-## --- | PROJECT PLAN | ---
+## **PROJECT PLAN**
 
 1. Central website design and page layouts
 2. Resume / About Me
@@ -18,7 +16,7 @@
 
 ---
 
-## License
+## **License**
 
 Shield: [![CC BY-NC-SA 4.0][cc-by-nc-sa-shield]][cc-by-nc-sa]
 
@@ -31,4 +29,8 @@ This work is licensed under a
 [cc-by-nc-sa-image]: https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png
 [cc-by-nc-sa-shield]: https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg
 
-### Authored by Dillon Mannion (@4Clover)
+## **Author**
+
+```
+    Dillon Mannion
+```
