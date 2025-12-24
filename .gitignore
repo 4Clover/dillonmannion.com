@@ -1,4 +1,12 @@
-# Custom 
+# IDE
+.idea/*
+.idea
+.vscode
+.vscode/*
+
+# Custom
+GEMINI.md
+CLAUDE.md
 
 # Environment variables
 .env/

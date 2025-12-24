@@ -1,0 +1,10 @@
+app:
+  name: "Genrefy"
+  version: "0.1"
+
+spotify:
+  scope: "user-library-read playlist-modify-public"
+
+audio:
+  sample_rate: 22050
+  duration: 30 # seconds

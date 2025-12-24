@@ -1,0 +1,9 @@
+spotipy
+librosa
+numpy
+pandas
+scikit-learn
+tensorflow
+pyyaml
+python-dotenv
+jupyter
